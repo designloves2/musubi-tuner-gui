@@ -1,8 +1,22 @@
-# musubi-tuner-gui
+# musubi-tuner-gui (TJ fork)
 
 GUI for [musubi-tuner](https://github.com/kohya-ss/musubi-tuner), tracking upstream release v0.3.4.
 
+This is a fork of [bmaltais/musubi-tuner-gui](https://github.com/bmaltais/musubi-tuner-gui) with a set of usability additions layered on top (see below) — all credit for the base GUI goes to [@bmaltais](https://github.com/bmaltais). Licensed GPL-3.0, same as upstream; see [LICENSE](LICENSE).
+
 Contributions to the GUI code are welcome. This project uses [uv](https://github.com/astral-sh/uv) as the Python package manager to facilitate cross-platform use. The aim is to support Linux and Windows, with potential MacOS support pending contributions.
+
+## What this fork adds
+
+Built for training remotely (over a web session / Cloudflare tunnel / similar), where the native OS file-picker dialogs upstream relies on for "Browse" buttons don't work — they try to open on the host machine's desktop, not your browser.
+
+- **Dataset Preview** (Dataset Config tab) — selecting a dataset row shows an inline thumbnail gallery labelled with each image's caption, plus counts of missing/empty captions and latent/text-encoder cache status. No more guessing whether a folder actually loaded.
+- **Dataset Upload** (Dataset Config tab) — drag-and-drop a folder or select files straight from your browser to `./Dataset/<name>/images`; a ready-to-use dataset config is auto-generated and registered. Pure browser upload, so it works over a remote/web session where the native folder dialog can't.
+- **Registered Dataset Config bookmarks** — save dataset config paths you've used before and pick them from a dropdown (Dataset Config tab, and a quick-pick shortcut right under the Dataset Config field on the Musubi Tuner tab) instead of clicking Browse.
+- **📁 Output tab** — every output directory used by a training run is auto-tracked here. Pick one to see its checkpoints (by step, sorted newest-first) and sample images in a gallery, with a folder-open shortcut and 10s auto-refresh.
+- **Live monitoring** — GPU utilization/VRAM/temperature, and (for runs started from this GUI's Start training button) a tailable training console log, both refreshed every few seconds without stalling the rest of the UI while training runs.
+- **English default + Korean toggle** — all of the above ships in English by default; a Language setting (Settings tab) switches the added panels to Korean (upstream's own labels stay English either way). Takes effect after restarting the GUI.
+- **Fixes**: Configuration File Settings dropdown was filtering for `*.json` when presets are `*.toml` (nothing ever showed up); training could crash on CJK characters in log output on non-UTF-8 Windows locales; Krea2/Qwen-Image latent caching rejects `--vae_dtype` but the GUI always sent it; `--network_args` was sent to musubi as one string instead of the list it expects; Gradio's default concurrency limit of 1 meant a running training job froze every other UI event (including the monitoring above) until it finished.
 
 ## Supported architectures
 
@@ -98,7 +112,7 @@ $env:Path = "C:\Users\berna\.local\bin;$env:Path"
 ### With uv installation
 
 ```shell
-git clone --recursive https://github.com/bmaltais/musubi-tuner-gui.git
+git clone --recursive https://github.com/designloves2/musubi-tuner-gui.git
 cd musubi-tuner-gui
 uv run gui.py
 ```
@@ -107,7 +121,7 @@ uv run gui.py
 #### Windows
 
 ```shell
-git clone --recursive https://github.com/bmaltais/musubi-tuner-gui.git
+git clone --recursive https://github.com/designloves2/musubi-tuner-gui.git
 cd musubi-tuner-gui
 .\gui.bat
 ```
@@ -115,7 +129,7 @@ cd musubi-tuner-gui
 #### Linux
 
 ```shell
-git clone --recursive https://github.com/bmaltais/musubi-tuner-gui.git
+git clone --recursive https://github.com/designloves2/musubi-tuner-gui.git
 cd musubi-tuner-gui
 ./gui.sh
 ```
