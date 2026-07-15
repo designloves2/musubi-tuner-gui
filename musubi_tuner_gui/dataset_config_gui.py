@@ -20,6 +20,7 @@ from .tj_dataset_gui import (
     dataset_config_choices,
     upload_dataset_files,
 )
+from .tj_i18n import t, get_language
 from .dataset_config_toml import (
     DATASET_KNOWN_KEYS,
     FRAME_EXTRACTION_CHOICES,
@@ -351,6 +352,7 @@ def dataset_config_tab(
     config_file_path: str = "./config.toml",
     training_dataset_config_component=None,
 ):
+    lang = get_language(config)
     gr.Markdown(
         "Create, open, edit, validate, and save a musubi-tuner dataset TOML file. "
         "Comments in hand-written files are not preserved on save; unknown/advanced "
@@ -368,48 +370,49 @@ def dataset_config_tab(
     datasets_state = gr.State([])
     selected_index_state = gr.State(None)
 
-    with gr.Accordion("📤 데이터셋 업로드 (원격 지원)", open=False, elem_classes="preset_background"):
-        gr.Markdown(
-            "브라우저의 드래그 앤 드롭 / 파일 선택창을 사용합니다 — 원격 접속(웹)에서도 정상 작동합니다 "
-            "(다른 곳의 📁 Browse 버튼과 달리 이 PC 데스크톱 파일창을 띄우지 않습니다). "
-            f"업로드한 파일은 `{os.path.join('.', 'Dataset', '<이름>', 'images')}` 에 저장되고, "
-            "바로 쓸 수 있는 데이터셋 설정 파일이 자동으로 생성/등록됩니다."
-        )
+    with gr.Accordion(
+        t("upload_accordion_title", lang), open=False, elem_classes="preset_background"
+    ):
+        gr.Markdown(t("upload_desc", lang))
         upload_dataset_name = gr.Textbox(
-            label="데이터셋 이름 (폴더명으로 사용)",
-            placeholder="예: my_character",
+            label=t("upload_name_label", lang),
+            placeholder=t("upload_name_placeholder", lang),
         )
         with gr.Row():
             upload_dir_files = gr.File(
-                label="📁 폴더 업로드 (드래그 앤 드롭 또는 클릭)",
+                label=t("upload_dir_label", lang),
                 file_count="directory",
                 type="filepath",
             )
             upload_multi_files = gr.File(
-                label="📄 또는 파일 여러 개 선택 (이미지 + 캡션 .txt)",
+                label=t("upload_multi_label", lang),
                 file_count="multiple",
                 type="filepath",
             )
-        upload_btn = gr.Button("⬆️ 업로드 & 데이터셋 등록", variant="primary")
+        with gr.Row():
+            upload_btn = gr.Button(t("upload_btn", lang), variant="primary", scale=3)
+            upload_reset_btn = gr.Button(t("upload_reset_btn", lang), scale=1)
         upload_status = gr.Markdown("")
         upload_gallery = gr.Gallery(
-            label="업로드된 이미지 / 캡션",
+            label=t("upload_gallery_label", lang),
             columns=6,
             height=400,
             object_fit="contain",
             show_label=True,
         )
 
-    with gr.Row():
+    with gr.Row(elem_classes="tj_quickpick"):
         registered_dataset_dropdown = gr.Dropdown(
-            label="등록된 Dataset Config",
+            label=t("registered_dataset_dropdown_label", lang),
             choices=dataset_config_choices(),
             interactive=True,
             allow_custom_value=True,
             scale=4,
         )
-        button_load_registered = gr.Button("📥 불러오기", variant="primary", scale=1)
-        button_register_dataset = gr.Button("📌 현재 경로 등록", scale=1)
+        button_load_registered = gr.Button(
+            t("load_button", lang), variant="primary", scale=1
+        )
+        button_register_dataset = gr.Button(t("register_path_button", lang), scale=1)
 
     with gr.Row():
         dataset_path = gr.Textbox(
@@ -525,16 +528,15 @@ def dataset_config_tab(
         )
 
     with gr.Accordion(
-        "🖼️ Dataset Preview", open=True, elem_classes="samples_background"
+        t("dataset_preview_accordion_title", lang),
+        open=True,
+        elem_classes="samples_background",
     ):
-        gr.Markdown(
-            "위에서 데이터셋 행을 선택하면 자동으로 미리보기가 뜹니다. "
-            "Source path / Cache directory / Caption Extension을 수정한 뒤 새로 확인하려면 버튼을 누르세요."
-        )
-        button_preview = gr.Button("🔍 이 데이터셋 미리보기")
+        gr.Markdown(t("dataset_preview_desc", lang))
+        button_preview = gr.Button(t("preview_this_dataset_button", lang))
         preview_status = gr.Markdown("")
         preview_gallery = gr.Gallery(
-            label="이미지 / 캡션",
+            label=t("image_caption_gallery_label", lang),
             columns=6,
             height=480,
             object_fit="contain",
@@ -587,7 +589,7 @@ def dataset_config_tab(
 
     def preview_selected_dataset(src_path, cache_dir, cap_ext, general_cap_ext):
         ext = (cap_ext or "").strip() or (general_cap_ext or "").strip() or ".txt"
-        return scan_dataset_dirs(src_path, cache_dir, ext)
+        return scan_dataset_dirs(src_path, cache_dir, ext, lang=lang)
 
     preview_inputs = [
         source_path,
@@ -906,7 +908,7 @@ def dataset_config_tab(
 
     def do_upload(name, dir_files, multi_files):
         status, gallery, config_path, choices = upload_dataset_files(
-            name, dir_files, multi_files
+            name, dir_files, multi_files, lang=lang
         )
         return status, gallery, config_path, gr.Dropdown(choices=choices)
 
@@ -925,6 +927,24 @@ def dataset_config_tab(
         fn=lambda path: open_dataset_config(False, path),
         inputs=[dataset_path],
         outputs=open_dataset_outputs,
+    )
+
+    def reset_upload():
+        # Clear the whole upload panel to start a fresh dataset (name, both
+        # file pickers, status, gallery) without touching anything already
+        # loaded into the editor below.
+        return "", None, None, "", []
+
+    upload_reset_btn.click(
+        fn=reset_upload,
+        inputs=[],
+        outputs=[
+            upload_dataset_name,
+            upload_dir_files,
+            upload_multi_files,
+            upload_status,
+            upload_gallery,
+        ],
     )
 
     def register_and_refresh(path):

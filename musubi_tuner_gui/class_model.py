@@ -3,6 +3,7 @@ from .class_gui_config import GUIConfig
 from .class_architecture import architecture_choices, DEFAULT_ARCHITECTURE
 from .common_gui import path_field
 from .tj_dataset_gui import dataset_config_choices
+from .tj_i18n import t, get_language
 
 
 class Model:
@@ -13,6 +14,7 @@ class Model:
     ) -> None:
         self.config = config
         self.headless = headless
+        self.lang = get_language(config)
 
         # Initialize the UI components
         self.initialize_ui_components()
@@ -34,15 +36,15 @@ class Model:
             default_extension=".toml",
             extension_name="TOML files (*.toml)",
         )
-        with gr.Row():
+        with gr.Row(elem_classes="tj_quickpick"):
             self.dataset_config_registered = gr.Dropdown(
-                label="또는 등록된 Dataset Config에서 선택 (Browse 없이, 원격에서도 안전)",
+                label=t("quickpick_dataset_config_label", self.lang),
                 choices=dataset_config_choices(),
                 interactive=True,
                 allow_custom_value=True,
                 scale=4,
             )
-            self.dataset_config_refresh = gr.Button("🔄 새로고침", scale=1)
+            self.dataset_config_refresh = gr.Button(t("refresh", self.lang), scale=1)
         self.dataset_config_registered.change(
             fn=lambda v: v,
             inputs=[self.dataset_config_registered],

@@ -131,3 +131,4 @@ xformers = false
 
 [settings]
 dataset_config_edit_path = "C:/AI/musubi-tuner-gui/my_training/dataset.toml"
+language = "en"

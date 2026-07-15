@@ -78,9 +78,13 @@ class CommandExecutor:
                 log_fh.close()
 
     def get_recent_log(self, n: int = 200) -> str:
+        """Returns the tail of captured output, or "" if nothing has been
+        captured yet. Callers render their own localized placeholder for the
+        empty case rather than this returning one, so log text is never
+        matched against a fixed (and language-dependent) sentinel string."""
         with self._log_lock:
             lines = list(self.log_lines)[-n:]
-        return "\n".join(lines) if lines else "(로그 없음 — 학습이 실행 중이 아닙니다)"
+        return "\n".join(lines)
 
     def execute_command(self, run_cmd: str, log_file: str = None, **kwargs):
         """

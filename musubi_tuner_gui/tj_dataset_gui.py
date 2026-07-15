@@ -17,6 +17,8 @@ import shutil
 import time
 import toml
 
+from .tj_i18n import t, DEFAULT_LANG
+
 IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".avif")
 
 # --- Registered dataset config files (bookmarks), mirroring tj_projects_gui's
@@ -95,20 +97,24 @@ def _read_caption(image_path: str, ext: str = ".txt"):
     return None  # None = caption file missing
 
 
-def scan_dataset_dirs(image_dir: str, cache_dir: str = "", caption_ext: str = ".txt"):
+def scan_dataset_dirs(
+    image_dir: str, cache_dir: str = "", caption_ext: str = ".txt", lang: str = DEFAULT_LANG
+):
     """Scan a plain image folder (+ optional cache folder) and return (gallery_items, status_markdown)."""
     image_dir = (image_dir or "").strip()
     cache_dir = (cache_dir or "").strip()
     ext = (caption_ext or ".txt").strip() or ".txt"
 
     if not image_dir:
-        return [], "⚠️ Source path(이미지 폴더)를 입력하세요."
+        return [], t("scan_no_source_path", lang)
     if not os.path.isdir(image_dir):
-        return [], f"❌ 이미지 폴더가 없음: `{image_dir}`"
+        return [], t("scan_dir_missing", lang, image_dir=image_dir)
 
     images = _list_images(image_dir)
     if not images:
-        return [], f"⚠️ `{image_dir}` 에 이미지가 없습니다. (지원: {', '.join(IMAGE_EXTS)})"
+        return [], t(
+            "scan_no_images", lang, image_dir=image_dir, exts=", ".join(IMAGE_EXTS)
+        )
 
     gallery = []
     missing = []
@@ -118,10 +124,10 @@ def scan_dataset_dirs(image_dir: str, cache_dir: str = "", caption_ext: str = ".
         cap = _read_caption(img, ext)
         name = os.path.basename(img)
         if cap is None:
-            label = f"❌ 캡션없음 | {name}"
+            label = t("caption_missing_label", lang, name=name)
             missing.append(name)
         elif cap == "":
-            label = f"⚠️ 캡션빈칸 | {name}"
+            label = t("caption_empty_label", lang, name=name)
             empty_caption.append(name)
         else:
             preview = cap if len(cap) <= 80 else cap[:80] + "…"
@@ -136,34 +142,49 @@ def scan_dataset_dirs(image_dir: str, cache_dir: str = "", caption_ext: str = ".
         n_te = sum(1 for f in cache_files if f.endswith("_te.safetensors"))
         if n_latent == 0 and n_te == 0:
             n_any = sum(1 for f in cache_files if f.endswith(".safetensors"))
-            cache_line = f"\n- 💾 캐시 파일: **{n_any}**개 (`{cache_dir}`)"
+            cache_line = t("cache_line_generic", lang, n_any=n_any, cache_dir=cache_dir)
         else:
-            cache_line = (
-                f"\n- 💾 latent 캐시: **{n_latent}** / TEO 캐시: **{n_te}** "
-                f"(이미지 {len(images)}개 대비) `{cache_dir}`"
+            cache_line = t(
+                "cache_line_specific",
+                lang,
+                n_latent=n_latent,
+                n_te=n_te,
+                n_images=len(images),
+                cache_dir=cache_dir,
             )
     elif cache_dir:
-        cache_line = f"\n- 💾 캐시 폴더 없음(아직 캐싱 안 함): `{cache_dir}`"
+        cache_line = t("cache_line_none", lang, cache_dir=cache_dir)
 
     status = (
-        f"### 📁 `{image_dir}`\n"
-        f"- 이미지: **{len(images)}**개\n"
-        f"- ✅ 캡션 정상: **{paired}** / ❌ 캡션없음: **{len(missing)}** / ⚠️ 빈캡션: **{len(empty_caption)}**"
-        f"{cache_line}"
+        t("scan_status_header", lang, image_dir=image_dir)
+        + t("scan_status_images", lang, n_images=len(images))
+        + t(
+            "scan_status_captions",
+            lang,
+            paired=paired,
+            missing=len(missing),
+            empty=len(empty_caption),
+        )
+        + cache_line
     )
     if missing:
         show = ", ".join(missing[:10]) + (" …" if len(missing) > 10 else "")
-        status += f"\n\n❌ **캡션 없는 이미지:** {show}"
+        status += t("scan_status_missing_list", lang, show=show)
     if empty_caption:
         show = ", ".join(empty_caption[:10]) + (" …" if len(empty_caption) > 10 else "")
-        status += f"\n\n⚠️ **빈 캡션 이미지:** {show}"
+        status += t("scan_status_empty_list", lang, show=show)
     if not missing and not empty_caption:
-        status += "\n\n🎉 모든 이미지에 캡션이 정상으로 짝지어져 있습니다."
+        status += t("scan_status_all_ok", lang)
 
     return gallery, status
 
 
-def scan_dataset_toml(dataset_toml: str, image_dir_override: str = "", caption_ext: str = ""):
+def scan_dataset_toml(
+    dataset_toml: str,
+    image_dir_override: str = "",
+    caption_ext: str = "",
+    lang: str = DEFAULT_LANG,
+):
     """Scan using a dataset TOML's first [[datasets]] entry (standalone/manual use)."""
     image_dir = (image_dir_override or "").strip()
     cache_dir = ""
@@ -172,11 +193,11 @@ def scan_dataset_toml(dataset_toml: str, image_dir_override: str = "", caption_e
     if dataset_toml and dataset_toml.strip():
         p = dataset_toml.strip()
         if not os.path.isfile(p):
-            return [], f"❌ 데이터셋 TOML을 찾을 수 없음: `{p}`"
+            return [], t("toml_not_found", lang, p=p)
         try:
             data = toml.load(p)
         except Exception as e:
-            return [], f"❌ TOML 파싱 오류: {e}"
+            return [], t("toml_parse_error", lang, e=e)
         general = data.get("general", {})
         ds_list = data.get("datasets", [])
         if ds_list:
@@ -186,7 +207,7 @@ def scan_dataset_toml(dataset_toml: str, image_dir_override: str = "", caption_e
             cache_dir = ds0.get("cache_directory", "") or ""
             ext = ds0.get("caption_extension", general.get("caption_extension", ext)) or ext
 
-    return scan_dataset_dirs(image_dir, cache_dir, ext)
+    return scan_dataset_dirs(image_dir, cache_dir, ext, lang=lang)
 
 
 # --- Remote-friendly dataset upload -----------------------------------------
@@ -222,14 +243,14 @@ def list_uploaded_datasets():
     )
 
 
-def upload_dataset_files(dataset_name: str, dir_files, multi_files):
+def upload_dataset_files(dataset_name: str, dir_files, multi_files, lang: str = DEFAULT_LANG):
     """Copy browser-uploaded files into Dataset/<name>/images, generate a ready
     dataset_config.toml next to it, and register that config. Returns
     (status_md, gallery_items, dataset_config_path, updated_dropdown_choices)."""
     all_files = list(dir_files or []) + list(multi_files or [])
     if not all_files:
         return (
-            "⚠️ 업로드할 파일이 없습니다. 폴더나 파일을 선택/드래그하세요.",
+            t("upload_no_files", lang),
             [],
             "",
             dataset_config_choices(),
@@ -288,14 +309,14 @@ def upload_dataset_files(dataset_name: str, dir_files, multi_files):
     register_dataset_config(config_path)
 
     status = (
-        f"### ✅ 업로드 완료 — `{dest_root}`\n"
-        f"- 업로드된 파일: **{copied}**개 → 이미지 **{n_images}**개 / 캡션(.txt) **{n_captions}**개\n"
-        f"- 데이터셋 설정 자동 생성: `{config_path}` (등록됨, Dataset Config 드롭다운에서 바로 불러오기 가능)\n"
+        t("upload_done_header", lang, dest_root=dest_root)
+        + t("upload_done_counts", lang, copied=copied, n_images=n_images, n_captions=n_captions)
+        + t("upload_done_config", lang, config_path=config_path)
     )
     if n_images and n_captions < n_images:
-        status += f"\n⚠️ 캡션 없는 이미지가 {n_images - n_captions}개 있습니다. 각 이미지와 같은 이름의 .txt 파일도 업로드하세요."
+        status += t("upload_missing_captions_warn", lang, n=n_images - n_captions)
     if skipped:
-        status += "\n\n❌ 복사 실패: " + ", ".join(skipped[:10])
+        status += t("upload_copy_failed", lang) + ", ".join(skipped[:10])
 
-    gallery, _ = scan_dataset_dirs(images_dir, cache_dir, ".txt")
+    gallery, _ = scan_dataset_dirs(images_dir, cache_dir, ".txt", lang=lang)
     return status, gallery, config_path, dataset_config_choices()
