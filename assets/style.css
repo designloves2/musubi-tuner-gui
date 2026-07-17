@@ -286,6 +286,32 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+/*
+ * TJ addition: "quick-pick" rows that shortcut-fill a field defined just
+ * above them (e.g. "pick from registered Dataset Config" under the Dataset
+ * Config textbox). These previously used the same flat background as
+ * everything around them, so it wasn't obvious they were a helper tied to
+ * the field above rather than an unrelated new field. Indent + a left
+ * accent bar + a muted/smaller look marks it as a subordinate shortcut.
+ */
+.tj_quickpick {
+    margin-left: 1.25em;
+    padding: 0.5em 0.75em 0.5em 0.75em;
+    border-left: 3px solid #d99a3a; /* amber accent, distinct from the blue-slate section family */
+    background: #faf3e6;
+    border-radius: 0 6px 6px 0;
+    opacity: 0.92;
+}
+
+.tj_quickpick label span {
+    font-size: 0.9em;
+}
+
+.dark .tj_quickpick {
+    border-left: 3px solid #c9862a;
+    background: #241d10;
+}
+
 #training_actions_bar {
     gap: 0.75em;
     padding: 0.5em 0 1em;

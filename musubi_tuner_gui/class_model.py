@@ -2,6 +2,8 @@ import gradio as gr
 from .class_gui_config import GUIConfig
 from .class_architecture import architecture_choices, DEFAULT_ARCHITECTURE
 from .common_gui import path_field
+from .tj_dataset_gui import dataset_config_choices, check_resolution_shift_mismatch
+from .tj_i18n import t, get_language
 
 
 class Model:
@@ -12,26 +14,59 @@ class Model:
     ) -> None:
         self.config = config
         self.headless = headless
+        self.lang = get_language(config)
 
         # Initialize the UI components
         self.initialize_ui_components()
 
     def initialize_ui_components(self) -> None:
+        lang = self.lang
         with gr.Row():
             self.architecture = gr.Dropdown(
-                label="Architecture",
-                info="Model architecture to train",
+                label=t("m_architecture_label", lang),
+                info=t("m_architecture_info", lang),
                 choices=architecture_choices(),
                 value=self.config.get("architecture", DEFAULT_ARCHITECTURE),
                 interactive=True,
             )
 
         self.dataset_config = path_field(
-            label="Dataset Config",
-            placeholder="Path to the dataset config file",
+            lang=lang,
+            label=t("m_dataset_config_label", lang),
+            placeholder=t("m_dataset_config_placeholder", lang),
             value=str(self.config.get("dataset_config", "")),
             default_extension=".toml",
             extension_name="TOML files (*.toml)",
+        )
+        with gr.Row(elem_classes="tj_quickpick"):
+            self.dataset_config_registered = gr.Dropdown(
+                label=t("quickpick_dataset_config_label", self.lang),
+                choices=dataset_config_choices(),
+                interactive=True,
+                allow_custom_value=True,
+                scale=4,
+            )
+            self.dataset_config_refresh = gr.Button(t("refresh", self.lang), scale=1)
+        self.dataset_config_registered.change(
+            fn=lambda v: v,
+            inputs=[self.dataset_config_registered],
+            outputs=[self.dataset_config],
+            show_progress=False,
+        )
+        self.dataset_config_refresh.click(
+            fn=lambda: gr.Dropdown(choices=dataset_config_choices()),
+            inputs=[],
+            outputs=[self.dataset_config_registered],
+            show_progress=False,
+        )
+        # Also refresh on open/focus so entries registered from the Dataset
+        # Config File tab (a separate dropdown/registry read) show up here
+        # without needing the manual Refresh button.
+        self.dataset_config_registered.focus(
+            fn=lambda: gr.Dropdown(choices=dataset_config_choices()),
+            inputs=[],
+            outputs=[self.dataset_config_registered],
+            show_progress=False,
         )
 
         self.group_dit_vae = gr.Column(visible=True)
@@ -116,20 +151,23 @@ class Model:
 
     def _initialize_dit_vae_fields(self) -> None:
         """Fields shared by every architecture that follows the DiT+VAE shape."""
+        lang = self.lang
         self.dit = path_field(
-            label="DiT Checkpoint Path",
-            placeholder="Path to DiT checkpoint",
+            lang=lang,
+            label=t("m_dit_label", lang),
+            placeholder=t("m_dit_placeholder", lang),
             value=self.config.get("dit", ""),
         )
         self.vae = path_field(
-            label="VAE Checkpoint Path",
-            placeholder="Path to VAE checkpoint",
+            lang=lang,
+            label=t("m_vae_label", lang),
+            placeholder=t("m_vae_placeholder", lang),
             value=self.config.get("vae", ""),
         )
         with gr.Row():
             self.vae_dtype = gr.Dropdown(
-                label="VAE Data Type",
-                info="Select the data type for VAE",
+                label=t("m_vae_dtype_label", lang),
+                info=t("m_vae_dtype_info", lang),
                 choices=["float16", "bfloat16"],
                 value=self.config.get("vae_dtype", "float16"),
                 interactive=True,
@@ -137,10 +175,11 @@ class Model:
 
     def _initialize_dit_dtype_fields(self) -> None:
         """Shared by architectures with a DiT dtype selector (HunyuanVideo, HunyuanVideo 1.5)."""
+        lang = self.lang
         with gr.Row():
             self.dit_dtype = gr.Dropdown(
-                label="DiT Data Type",
-                info="Select the data type for DiT",
+                label=t("m_dit_dtype_label", lang),
+                info=t("m_dit_dtype_info", lang),
                 choices=["float16", "bfloat16"],
                 value=self.config.get("dit_dtype", "bfloat16"),
                 interactive=True,
@@ -148,80 +187,86 @@ class Model:
 
     def _initialize_hv_extras_fields(self) -> None:
         """HunyuanVideo-only model fields (VAE tiling, text encoder dtype/fp8)."""
+        lang = self.lang
         with gr.Row():
             self.vae_tiling = gr.Checkbox(
-                label="Enable VAE Spatial Tiling",
+                label=t("m_vae_tiling_label", lang),
                 value=self.config.get("vae_tiling", False),
                 interactive=True,
             )
 
             self.vae_chunk_size = gr.Number(
-                label="VAE Chunk Size",
-                info="Chunk size for CausalConv3d in VAE",
+                label=t("m_vae_chunk_size_label", lang),
+                info=t("m_vae_chunk_size_info", lang),
                 value=self.config.get("vae_chunk_size", None),
                 step=1,
                 interactive=True,
             )
 
             self.vae_spatial_tile_sample_min_size = gr.Number(
-                label="VAE Spatial Tile Sample Min Size",
-                info="Spatial tile sample min size for VAE (default: 256)",
+                label=t("m_vae_spatial_tile_sample_min_size_label", lang),
+                info=t("m_vae_spatial_tile_sample_min_size_info", lang),
                 value=self.config.get("vae_spatial_tile_sample_min_size", 256),
                 interactive=True,
             )
 
         with gr.Row():
             self.text_encoder_dtype = gr.Dropdown(
-                label="Text Encoder Data Type",
-                info="Select the data type for Text Encoder",
+                label=t("m_text_encoder_dtype_label", lang),
+                info=t("m_text_encoder_dtype_info", lang),
                 choices=["float16", "bfloat16"],
                 value=self.config.get("text_encoder_dtype", "float16"),
                 interactive=True,
             )
 
             self.fp8_llm = gr.Checkbox(
-                label="Use FP8 for LLM",
+                label=t("m_fp8_llm_label", lang),
                 value=self.config.get("fp8_llm", False),
             )
 
     def _initialize_dual_text_encoder_fields(self) -> None:
         """Shared by architectures with two text encoder paths (HunyuanVideo, FLUX Kontext)."""
+        lang = self.lang
         self.text_encoder1 = path_field(
-            label="Text Encoder 1 Directory/file",
-            placeholder="Path to Text Encoder 1 directory or file",
+            lang=lang,
+            label=t("m_text_encoder1_label", lang),
+            placeholder=t("m_text_encoder1_placeholder", lang),
             value=self.config.get("text_encoder1", ""),
         )
         self.text_encoder2 = path_field(
-            label="Text Encoder 2 Directory/file",
-            placeholder="Path to Text Encoder 2 directory or file",
+            lang=lang,
+            label=t("m_text_encoder2_label", lang),
+            placeholder=t("m_text_encoder2_placeholder", lang),
             value=self.config.get("text_encoder2", ""),
         )
 
     def _initialize_fp8_common_fields(self) -> None:
         """fp8_base and fp8_scaled are supported by every architecture seen so
         far; fp8_t5 is shared by Wan and FLUX Kontext specifically."""
+        lang = self.lang
         with gr.Row():
             self.fp8_base = gr.Checkbox(
-                label="Use FP8 for Base Model",
+                label=t("m_fp8_base_label", lang),
                 value=self.config.get("fp8_base", False),
             )
 
             self.fp8_scaled = gr.Checkbox(
-                label="Use scaled FP8 for DiT",
+                label=t("m_fp8_scaled_label", lang),
                 value=self.config.get("fp8_scaled", False),
             )
 
             self.fp8_t5 = gr.Checkbox(
-                label="Use FP8 for T5",
+                label=t("m_fp8_t5_label", lang),
                 value=self.config.get("fp8_t5", False),
             )
 
     def _initialize_wan_extras_fields(self) -> None:
         """Wan 2.1/2.2-only model fields (task selector, T5/CLIP, dual DiT)."""
+        lang = self.lang
         with gr.Row():
             self.task = gr.Dropdown(
-                label="Wan Task",
-                info="The Wan task to run",
+                label=t("m_wan_task_label", lang),
+                info=t("m_wan_task_info", lang),
                 choices=[
                     "t2v-14B",
                     "t2v-1.3B",
@@ -239,49 +284,55 @@ class Model:
             )
 
             self.timestep_boundary = gr.Number(
-                label="Timestep Boundary",
-                info="Timestep boundary for switching between high and low noise models (Wan2.2)",
+                label=t("m_timestep_boundary_label", lang),
+                info=t("m_timestep_boundary_info", lang),
                 value=self.config.get("timestep_boundary", None),
                 interactive=True,
             )
 
         self.dit_high_noise = path_field(
-            label="DiT High Noise Checkpoint Path (Wan2.2)",
-            placeholder="Path to the high-noise DiT checkpoint (Wan2.2 only)",
+            lang=lang,
+            label=t("m_dit_high_noise_label", lang),
+            placeholder=t("m_dit_high_noise_placeholder", lang),
             value=self.config.get("dit_high_noise", ""),
         )
         self.t5 = path_field(
-            label="T5 Checkpoint Path",
-            placeholder="Path to the T5 text encoder checkpoint",
+            lang=lang,
+            label=t("m_t5_label", lang),
+            placeholder=t("m_t5_placeholder", lang),
             value=self.config.get("t5", ""),
         )
         self.clip = path_field(
-            label="CLIP Checkpoint Path (Wan2.1 I2V only)",
-            placeholder="Path to the CLIP text encoder checkpoint, required for Wan2.1 I2V",
+            lang=lang,
+            label=t("m_clip_label", lang),
+            placeholder=t("m_clip_placeholder", lang),
             value=self.config.get("clip", ""),
         )
 
         with gr.Row():
             self.vae_cache_cpu = gr.Checkbox(
-                label="Cache VAE features on CPU",
+                label=t("m_vae_cache_cpu_label", lang),
                 value=self.config.get("vae_cache_cpu", False),
             )
 
     def _initialize_single_text_encoder_fields(self) -> None:
         """Shared by every architecture with exactly one text encoder path
         (Qwen-Image, Z-Image, FLUX.2, and likely most remaining image archs)."""
+        lang = self.lang
         self.text_encoder = path_field(
-            label="Text Encoder Path",
-            placeholder="Path to the text encoder checkpoint",
+            lang=lang,
+            label=t("m_text_encoder_label", lang),
+            placeholder=t("m_text_encoder_placeholder", lang),
             value=self.config.get("text_encoder", ""),
         )
 
     def _initialize_model_version_fields(self) -> None:
         """Shared by architectures with a model-version selector (Qwen-Image, FLUX.2)."""
+        lang = self.lang
         with gr.Row():
             self.model_version = gr.Dropdown(
-                label="Model Version",
-                info="Model variant to train",
+                label=t("m_model_version_label", lang),
+                info=t("m_model_version_info", lang),
                 choices=["original", "layered", "edit", "edit-2509"],
                 value=self.config.get("model_version", "original"),
                 interactive=True,
@@ -291,70 +342,77 @@ class Model:
     def _initialize_fp8_vl_fields(self) -> None:
         """Shared by architectures with a VL/vision-language text encoder fp8
         toggle (Qwen-Image, HunyuanVideo 1.5)."""
+        lang = self.lang
         with gr.Row():
             self.fp8_vl = gr.Checkbox(
-                label="Use FP8 for Text Encoder",
+                label=t("m_fp8_vl_label", lang),
                 value=self.config.get("fp8_vl", False),
             )
 
     def _initialize_qwen_image_extras_fields(self) -> None:
         """Qwen-Image-only model fields (layered mode)."""
+        lang = self.lang
         with gr.Row():
             self.num_layers = gr.Number(
-                label="Number of DiT Layers",
-                info="Default is None (60)",
+                label=t("m_num_layers_label", lang),
+                info=t("m_num_layers_info", lang),
                 value=self.config.get("num_layers", None),
                 step=1,
                 interactive=True,
             )
 
             self.remove_first_image_from_target = gr.Checkbox(
-                label="Remove First Image From Target (layered model)",
+                label=t("m_remove_first_image_from_target_label", lang),
                 value=self.config.get("remove_first_image_from_target", False),
             )
 
     def _initialize_flux_2_extras_fields(self) -> None:
         """FLUX.2-only model fields."""
+        lang = self.lang
         with gr.Row():
             self.fp8_text_encoder = gr.Checkbox(
-                label="Use FP8 for Text Encoder",
+                label=t("m_fp8_text_encoder_label", lang),
                 value=self.config.get("fp8_text_encoder", False),
             )
 
     def _initialize_image_encoder_fields(self) -> None:
         """Shared by architectures with an image encoder for i2v
         (HunyuanVideo 1.5, FramePack)."""
+        lang = self.lang
         self.image_encoder = path_field(
-            label="Image Encoder Path (i2v)",
-            placeholder="Path to the image encoder checkpoint, required for i2v",
+            lang=lang,
+            label=t("m_image_encoder_label", lang),
+            placeholder=t("m_image_encoder_placeholder", lang),
             value=self.config.get("image_encoder", ""),
         )
 
     def _initialize_hv_1_5_extras_fields(self) -> None:
         """HunyuanVideo 1.5-only model fields (t2v/i2v task, ByT5, VAE patch conv)."""
+        lang = self.lang
         with gr.Row():
             self.hv15_task = gr.Dropdown(
-                label="Task",
-                info="Text-to-video (t2v) or image-to-video (i2v)",
+                label=t("m_hv15_task_label", lang),
+                info=t("m_hv15_task_info", lang),
                 choices=["t2v", "i2v"],
                 value=self.config.get("hv15_task", "t2v"),
                 interactive=True,
             )
 
         self.byt5 = path_field(
-            label="ByT5 Checkpoint Path",
-            placeholder="Path to the ByT5 text encoder checkpoint",
+            lang=lang,
+            label=t("m_byt5_label", lang),
+            placeholder=t("m_byt5_placeholder", lang),
             value=self.config.get("byt5", ""),
         )
 
         with gr.Row():
             self.vae_enable_patch_conv = gr.Checkbox(
-                label="Enable VAE Patch Conv",
+                label=t("m_vae_enable_patch_conv_label", lang),
                 value=self.config.get("vae_enable_patch_conv", False),
             )
 
             self.vae_sample_size = gr.Number(
-                label="VAE Sample Size",
+                label=t("m_vae_sample_size_label", lang),
                 value=self.config.get("vae_sample_size", None),
                 step=1,
                 interactive=True,
@@ -362,26 +420,27 @@ class Model:
 
     def _initialize_framepack_extras_fields(self) -> None:
         """FramePack-only model fields."""
+        lang = self.lang
         with gr.Row():
             self.latent_window_size = gr.Number(
-                label="Latent Window Size",
+                label=t("m_latent_window_size_label", lang),
                 value=self.config.get("latent_window_size", None),
                 step=1,
                 interactive=True,
             )
 
             self.f1 = gr.Checkbox(
-                label="Use F1 Sampling",
+                label=t("m_f1_label", lang),
                 value=self.config.get("f1", False),
             )
 
             self.bulk_decode = gr.Checkbox(
-                label="Bulk Decode",
+                label=t("m_bulk_decode_label", lang),
                 value=self.config.get("bulk_decode", False),
             )
 
             self.one_frame = gr.Checkbox(
-                label="One Frame Training",
+                label=t("m_one_frame_label", lang),
                 value=self.config.get("one_frame", False),
             )
 
@@ -393,21 +452,24 @@ class Model:
         nabla_wH/wT/wW, nabla_method, etc.) are left to the existing
         Additional Parameters passthrough rather than getting dedicated
         widgets."""
+        lang = self.lang
         with gr.Row():
             self.kandinsky5_task = gr.Textbox(
-                label="Task",
-                placeholder="Required task identifier, see musubi-tuner docs",
+                label=t("m_kandinsky5_task_label", lang),
+                placeholder=t("m_kandinsky5_task_placeholder", lang),
                 value=self.config.get("kandinsky5_task", ""),
             )
 
         self.text_encoder_clip = path_field(
-            label="CLIP Text Encoder Path",
-            placeholder="Path to the CLIP text encoder checkpoint",
+            lang=lang,
+            label=t("m_text_encoder_clip_label", lang),
+            placeholder=t("m_text_encoder_clip_placeholder", lang),
             value=self.config.get("text_encoder_clip", ""),
         )
         self.text_encoder_qwen = path_field(
-            label="Qwen Text Encoder Path",
-            placeholder="Path to the Qwen text encoder checkpoint",
+            lang=lang,
+            label=t("m_text_encoder_qwen_label", lang),
+            placeholder=t("m_text_encoder_qwen_placeholder", lang),
             value=self.config.get("text_encoder_qwen", ""),
         )
 
@@ -418,31 +480,32 @@ class Model:
         DINOv3 auxiliary loss) gets a dedicated widget; the remaining
         DINOv3 tuning flags (layer, feature_mode, model_type, backend,
         etc.) are left to Additional Parameters."""
+        lang = self.lang
         with gr.Row():
             self.hidream_task = gr.Dropdown(
-                label="Task",
-                info="Text-to-image (t2i) or image-to-image (i2i)",
+                label=t("m_hidream_task_label", lang),
+                info=t("m_hidream_task_info", lang),
                 choices=["t2i", "i2i"],
                 value=self.config.get("hidream_task", "t2i"),
                 interactive=True,
             )
 
             self.hidream_model_type = gr.Dropdown(
-                label="Model Type",
+                label=t("m_hidream_model_type_label", lang),
                 choices=["full", "dev"],
                 value=self.config.get("hidream_model_type", "full"),
                 interactive=True,
             )
 
             self.fp8_te = gr.Checkbox(
-                label="Use FP8 for Text Encoder",
+                label=t("m_fp8_te_label", lang),
                 value=self.config.get("fp8_te", False),
             )
 
         with gr.Row():
             self.dino_loss_weight = gr.Number(
-                label="DINOv3 Auxiliary Loss Weight",
-                info="0 disables the DINOv3 auxiliary loss",
+                label=t("m_dino_loss_weight_label", lang),
+                info=t("m_dino_loss_weight_info", lang),
                 value=self.config.get("dino_loss_weight", 0),
                 step=0.001,
                 interactive=True,
@@ -452,23 +515,25 @@ class Model:
         """Ideogram4-only model fields. log_loss_stats (a debug diagnostics
         flag) is left to Additional Parameters rather than getting a
         dedicated widget."""
+        lang = self.lang
         self.unconditional_dit = path_field(
-            label="Unconditional DiT Path",
-            placeholder="Path to the unconditional Ideogram 4 DiT checkpoint",
+            lang=lang,
+            label=t("m_unconditional_dit_label", lang),
+            placeholder=t("m_unconditional_dit_placeholder", lang),
             value=self.config.get("unconditional_dit", ""),
         )
 
         with gr.Row():
             self.sampler_preset = gr.Dropdown(
-                label="Sampler Preset",
+                label=t("m_sampler_preset_label", lang),
                 choices=["V4_DEFAULT_20", "V4_QUALITY_48", "V4_TURBO_12"],
                 value=self.config.get("sampler_preset", None),
                 interactive=True,
             )
 
             self.initial_sigma = gr.Number(
-                label="Initial Sigma",
-                info="Override the first denoising sigma for sampling",
+                label=t("m_initial_sigma_label", lang),
+                info=t("m_initial_sigma_info", lang),
                 value=self.config.get("initial_sigma", None),
                 step=0.001,
                 interactive=True,
@@ -476,52 +541,55 @@ class Model:
 
         with gr.Row():
             self.use_unconditional_dit_for_lora_sampling = gr.Checkbox(
-                label="Use Unconditional DiT for LoRA Sampling",
+                label=t("m_use_unconditional_dit_for_lora_sampling_label", lang),
                 value=self.config.get("use_unconditional_dit_for_lora_sampling", False),
             )
 
             self.validate_caption_structure = gr.Checkbox(
-                label="Validate Caption Structure",
+                label=t("m_validate_caption_structure_label", lang),
                 value=self.config.get("validate_caption_structure", False),
             )
 
             self.warn_on_caption_issues = gr.Checkbox(
-                label="Warn on Caption Issues",
+                label=t("m_warn_on_caption_issues_label", lang),
                 value=self.config.get("warn_on_caption_issues", False),
             )
 
     def _initialize_krea2_extras_fields(self) -> None:
         """Krea 2-only model fields."""
+        lang = self.lang
         self.turbo_dit = path_field(
-            label="Turbo DiT Path",
-            placeholder="Distilled Turbo DiT checkpoint path (for sample generation)",
+            lang=lang,
+            label=t("m_turbo_dit_label", lang),
+            placeholder=t("m_turbo_dit_placeholder", lang),
             value=self.config.get("turbo_dit", ""),
         )
 
         with gr.Row():
             self.turbo_dit_cache = gr.Checkbox(
-                label="Cache Turbo DiT",
+                label=t("m_turbo_dit_cache_label", lang),
                 value=self.config.get("turbo_dit_cache", False),
             )
 
     def _initialize_perf_fields(self) -> None:
+        lang = self.lang
         with gr.Row():
             self.blocks_to_swap = gr.Number(
-                label="Blocks to Swap",
-                info="Number of blocks to swap in the model (max XXX)",
+                label=t("m_blocks_to_swap_label", lang),
+                info=t("m_blocks_to_swap_info", lang),
                 value=self.config.get("blocks_to_swap", None),
                 step=1,
                 interactive=True,
             )
 
             self.img_in_txt_in_offloading = gr.Checkbox(
-                label="Offload img_in and txt_in to CPU",
+                label=t("m_img_in_txt_in_offloading_label", lang),
                 value=self.config.get("img_in_txt_in_offloading", False),
             )
 
             self.guidance_scale = gr.Number(
-                label="Guidance Scale",
-                info="Embedded classifier-free guidance scale",
+                label=t("m_guidance_scale_label", lang),
+                info=t("m_guidance_scale_info", lang),
                 value=self.config.get("guidance_scale", 1.0),
                 step=0.001,
                 interactive=True,
@@ -529,53 +597,78 @@ class Model:
 
         with gr.Row():
             self.use_pinned_memory_for_block_swap = gr.Checkbox(
-                label="Use Pinned Memory for Block Swap",
-                info="Speeds up block swap at the cost of extra host RAM",
+                label=t("m_use_pinned_memory_for_block_swap_label", lang),
+                info=t("m_use_pinned_memory_for_block_swap_info", lang),
                 value=self.config.get("use_pinned_memory_for_block_swap", False),
             )
 
             self.block_swap_h2d_only = gr.Checkbox(
-                label="Block Swap H2D Only",
-                info="Only swap host-to-device, skipping the device-to-host copy",
+                label=t("m_block_swap_h2d_only_label", lang),
+                info=t("m_block_swap_h2d_only_info", lang),
                 value=self.config.get("block_swap_h2d_only", False),
             )
 
             self.block_swap_ring_size = gr.Number(
-                label="Block Swap Ring Size",
+                label=t("m_block_swap_ring_size_label", lang),
                 value=self.config.get("block_swap_ring_size", None),
                 step=1,
                 interactive=True,
             )
 
     def _initialize_flow_matching_fields(self) -> None:
+        lang = self.lang
         with gr.Row():
             self.timestep_sampling = gr.Dropdown(
-                label="Timestep Sampling Method",
-                choices=["sigma", "uniform", "sigmoid", "shift"],
+                label=t("m_timestep_sampling_label", lang),
+                info=t("m_timestep_sampling_info", lang),
+                choices=[
+                    "sigma",
+                    "uniform",
+                    "sigmoid",
+                    "shift",
+                    "krea2_shift",
+                    "flux2_shift",
+                    "flux_shift",
+                ],
                 value=self.config.get("timestep_sampling", "sigma"),
                 interactive=True,
                 allow_custom_value=True,
             )
 
+        self.resolution_shift_warning = gr.Markdown("", elem_classes="tj_quickpick")
+
+        def _refresh_resolution_shift_warning(dataset_config_path, timestep_sampling, architecture):
+            return check_resolution_shift_mismatch(
+                dataset_config_path, timestep_sampling, architecture, lang=self.lang
+            )
+
+        for trigger in (self.timestep_sampling, self.dataset_config, self.architecture):
+            trigger.change(
+                fn=_refresh_resolution_shift_warning,
+                inputs=[self.dataset_config, self.timestep_sampling, self.architecture],
+                outputs=[self.resolution_shift_warning],
+                show_progress=False,
+            )
+
         with gr.Row():
             self.discrete_flow_shift = gr.Number(
-                label="Discrete Flow Shift",
-                info="Discrete flow shift for the Euler Discrete Scheduler (default: 1.0)",
+                label=t("m_discrete_flow_shift_label", lang),
+                info=t("m_discrete_flow_shift_info", lang),
                 value=self.config.get("discrete_flow_shift", 1.0),
                 step=0.001,
                 interactive=True,
             )
 
             self.sigmoid_scale = gr.Number(
-                label="Sigmoid Scale",
-                info="Scale factor for sigmoid timestep sampling",
+                label=t("m_sigmoid_scale_label", lang),
+                info=t("m_sigmoid_scale_info", lang),
                 value=self.config.get("sigmoid_scale", 1.0),
                 step=0.001,
                 interactive=True,
             )
 
             self.weighting_scheme = gr.Dropdown(
-                label="Weighting Scheme",
+                label=t("m_weighting_scheme_label", lang),
                 choices=["logit_normal", "mode", "cosmap", "sigma_sqrt", "none"],
                 value=self.config.get("weighting_scheme", "none"),
                 interactive=True,
@@ -583,24 +676,24 @@ class Model:
 
         with gr.Row():
             self.logit_mean = gr.Number(
-                label="Logit Mean",
-                info="Mean for 'logit_normal' weighting scheme",
+                label=t("m_logit_mean_label", lang),
+                info=t("m_logit_mean_info", lang),
                 value=self.config.get("logit_mean", 0.0),
                 step=0.001,
                 interactive=True,
             )
 
             self.logit_std = gr.Number(
-                label="Logit Std",
-                info="Standard deviation for 'logit_normal' weighting scheme",
+                label=t("m_logit_std_label", lang),
+                info=t("m_logit_std_info", lang),
                 value=self.config.get("logit_std", 1.0),
                 step=0.001,
                 interactive=True,
             )
 
             self.mode_scale = gr.Number(
-                label="Mode Scale",
-                info="Scale of mode weighting scheme",
+                label=t("m_mode_scale_label", lang),
+                info=t("m_mode_scale_info", lang),
                 value=self.config.get("mode_scale", 1.29),
                 step=0.001,
                 interactive=True,
@@ -608,8 +701,8 @@ class Model:
 
         with gr.Row():
             self.min_timestep = gr.Number(
-                label="Min Timestep",
-                info="Minimum timestep for training (0-999)",
+                label=t("m_min_timestep_label", lang),
+                info=t("m_min_timestep_info", lang),
                 value=self.config.get("min_timestep", 0),
                 step=1,
                 minimum=0,
@@ -618,8 +711,8 @@ class Model:
             )
 
             self.max_timestep = gr.Number(
-                label="Max Timestep",
-                info="Maximum timestep for training (1-1000)",
+                label=t("m_max_timestep_label", lang),
+                info=t("m_max_timestep_info", lang),
                 value=self.config.get("max_timestep", 1000),
                 minimum=1,
                 maximum=1000,
@@ -628,7 +721,7 @@ class Model:
             )
 
             self.show_timesteps = gr.Dropdown(
-                label="Show Timesteps",
+                label=t("m_show_timesteps_label", lang),
                 choices=["image", "console"],
                 allow_custom_value=True,
                 value=self.config.get("show_timesteps", None),

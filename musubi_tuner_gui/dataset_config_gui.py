@@ -14,6 +14,13 @@ import gradio as gr
 from .class_gui_config import GUIConfig
 from .common_gui import get_file_path, get_folder_path, get_saveasfile_path
 from .custom_logging import setup_logging
+from .tj_dataset_gui import (
+    scan_dataset_dirs,
+    register_dataset_config,
+    dataset_config_choices,
+    upload_dataset_files,
+)
+from .tj_i18n import t, get_language
 from .dataset_config_toml import (
     DATASET_KNOWN_KEYS,
     FRAME_EXTRACTION_CHOICES,
@@ -28,13 +35,6 @@ from .dataset_config_toml import (
 )
 
 log = setup_logging()
-
-DATASET_TYPE_CHOICES = [
-    ("Image directory", "image_directory"),
-    ("Image JSONL file", "image_jsonl_file"),
-    ("Video directory", "video_directory"),
-    ("Video JSONL file", "video_jsonl_file"),
-]
 
 # Number of values in the detail-editor tuple (see _dataset_to_editor_values /
 # _empty_editor_values). Asserted at module import time so an accidental
@@ -345,47 +345,100 @@ def dataset_config_tab(
     config_file_path: str = "./config.toml",
     training_dataset_config_component=None,
 ):
-    gr.Markdown(
-        "Create, open, edit, validate, and save a musubi-tuner dataset TOML file. "
-        "Comments in hand-written files are not preserved on save; unknown/advanced "
-        "keys are preserved untouched.\n\n"
-        "**How to build a dataset from scratch:**\n"
-        "1. Set defaults in **General** below (they apply to every dataset unless overridden per-dataset).\n"
-        "2. Pick a *Dataset type* under **Selected dataset**, then click **Browse** next to *Source path* "
-        "and choose your image/video folder (or jsonl file) — this creates a new row in **Datasets** for you.\n"
-        "3. Fill in the rest of the fields for that dataset (cache directory, caption extension, etc.), then click "
-        "**Apply changes** to save them into the row.\n"
-        "4. Repeat step 2-3 for more datasets, or click a row in the **Datasets** table to switch which one you're editing.\n"
-        "5. Check **Validation** — ERRORs block saving, WARNINGs don't — then click **Save** or **Save as**."
-    )
+    lang = get_language(config)
+    gr.Markdown(t("dataset_config_tab_intro", lang))
 
     datasets_state = gr.State([])
     selected_index_state = gr.State(None)
 
+    with gr.Accordion(
+        t("upload_accordion_title", lang), open=False, elem_classes="preset_background"
+    ):
+        gr.Markdown(t("upload_desc", lang))
+        upload_dataset_name = gr.Textbox(
+            label=t("upload_name_label", lang),
+            placeholder=t("upload_name_placeholder", lang),
+        )
+        with gr.Row():
+            upload_dir_files = gr.File(
+                label=t("upload_dir_label", lang),
+                file_count="directory",
+                type="filepath",
+            )
+            upload_multi_files = gr.File(
+                label=t("upload_multi_label", lang),
+                file_count="multiple",
+                type="filepath",
+            )
+        with gr.Row():
+            upload_btn = gr.Button(t("upload_btn", lang), variant="primary", scale=3)
+            upload_reset_btn = gr.Button(t("upload_reset_btn", lang), scale=1)
+        upload_status = gr.Markdown("")
+        upload_gallery = gr.Gallery(
+            label=t("upload_gallery_label", lang),
+            columns=6,
+            height=400,
+            object_fit="contain",
+            show_label=True,
+        )
+
+    with gr.Row(elem_classes="tj_quickpick"):
+        registered_dataset_dropdown = gr.Dropdown(
+            label=t("registered_dataset_dropdown_label", lang),
+            choices=dataset_config_choices(),
+            interactive=True,
+            allow_custom_value=True,
+            scale=4,
+        )
+        button_load_registered = gr.Button(
+            t("load_button", lang), variant="primary", scale=1
+        )
+        button_register_dataset = gr.Button(t("register_path_button", lang), scale=1)
+
+    # Re-read the registry on open/focus so bookmarks added elsewhere (e.g.
+    # the Model Settings tab's own quickpick dropdown, or auto-register on
+    # save) show up here without a page reload.
+    registered_dataset_dropdown.focus(
+        fn=lambda: gr.Dropdown(choices=dataset_config_choices()),
+        inputs=[],
+        outputs=[registered_dataset_dropdown],
+        show_progress=False,
+    )
+
     with gr.Row():
         dataset_path = gr.Textbox(
-            label="Dataset Config File",
-            placeholder="Path to the dataset TOML file",
+            label=t("dataset_file_label", lang),
+            placeholder=t("dataset_file_placeholder", lang),
             value=str(config.get("settings.dataset_config_edit_path", "")),
             scale=4,
         )
-        button_open = gr.Button("📂 Open…", visible=(not headless))
-        button_save = gr.Button("💾 Save", variant="primary")
-        button_save_as = gr.Button("💾 Save as…", visible=(not headless))
+        button_open = gr.Button(t("open_button", lang), visible=(not headless))
+        button_save = gr.Button(t("save_button", lang), variant="primary")
+        button_save_as = gr.Button(t("save_as_button", lang), visible=(not headless))
 
-    with gr.Accordion("⚙️ General", open=True, elem_classes="preset_background"):
+    with gr.Accordion(
+        t("general_accordion_title", lang), open=True, elem_classes="preset_background"
+    ):
         with gr.Row():
             general_resolution = gr.Textbox(
-                label="Resolution (W,H)", placeholder="960,544"
+                label=t("general_resolution_label", lang), placeholder="960,544"
             )
             general_caption_extension = gr.Textbox(
-                label="Caption Extension", placeholder=".txt"
+                label=t("general_caption_ext_label", lang), placeholder=".txt"
             )
-            general_batch_size = gr.Number(label="Batch Size", precision=0)
-            general_num_repeats = gr.Number(label="Num Repeats", precision=0)
+            general_batch_size = gr.Number(
+                label=t("general_batch_size_label", lang), precision=0
+            )
+            general_num_repeats = gr.Number(
+                label=t("general_num_repeats_label", lang), precision=0
+            )
         with gr.Row():
-            general_enable_bucket = gr.Checkbox(label="Enable Bucket", value=True)
-            general_bucket_no_upscale = gr.Checkbox(label="Bucket No Upscale")
+            general_enable_bucket = gr.Checkbox(
+                label=t("general_enable_bucket_label", lang), value=True
+            )
+            general_bucket_no_upscale = gr.Checkbox(
+                label=t("general_bucket_no_upscale_label", lang)
+            )
 
     general_widgets = [
         general_resolution,
@@ -396,86 +449,132 @@ def dataset_config_tab(
         general_bucket_no_upscale,
     ]
 
-    with gr.Accordion("📚 Datasets", open=True, elem_classes="huggingface_background"):
-        gr.Markdown(
-            "One row per `[[datasets]]` entry that will be written to the file. "
-            "Select a row below to edit it in **Selected dataset**."
-        )
+    with gr.Accordion(
+        t("datasets_accordion_title", lang),
+        open=True,
+        elem_classes="huggingface_background",
+    ):
+        gr.Markdown(t("datasets_accordion_desc", lang))
         with gr.Row():
-            button_add_image = gr.Button("🖼️ Add image dataset")
-            button_add_video = gr.Button("🎬 Add video dataset")
-            button_duplicate = gr.Button("📄 Duplicate selected")
-            button_remove = gr.Button("🗑️ Remove selected", variant="stop")
+            button_add_image = gr.Button(t("add_image_dataset_button", lang))
+            button_add_video = gr.Button(t("add_video_dataset_button", lang))
+            button_duplicate = gr.Button(t("duplicate_selected_button", lang))
+            button_remove = gr.Button(
+                t("remove_selected_button", lang), variant="stop"
+            )
 
         datasets_table = gr.Dataframe(
-            headers=["#", "Type", "Source", "Cache dir", "Repeats"],
+            headers=[
+                t("datasets_table_header_index", lang),
+                t("datasets_table_header_type", lang),
+                t("datasets_table_header_source", lang),
+                t("datasets_table_header_cache_dir", lang),
+                t("datasets_table_header_repeats", lang),
+            ],
             datatype=["number", "str", "str", "str", "number"],
             interactive=False,
             row_count=(0, "dynamic"),
         )
 
     with gr.Accordion(
-        "✏️ Selected dataset", open=True, elem_classes="samples_background"
+        t("selected_dataset_accordion_title", lang),
+        open=True,
+        elem_classes="samples_background",
     ):
         status_markdown = gr.Markdown(_status_text(None, []))
         dtype_radio = gr.Radio(
-            label="Dataset type",
-            choices=DATASET_TYPE_CHOICES,
+            label=t("dataset_type_label", lang),
+            choices=[
+                (t("dataset_type_image_directory", lang), "image_directory"),
+                (t("dataset_type_image_jsonl", lang), "image_jsonl_file"),
+                (t("dataset_type_video_directory", lang), "video_directory"),
+                (t("dataset_type_video_jsonl", lang), "video_jsonl_file"),
+            ],
             value="image_directory",
         )
 
-        gr.Markdown("**Paths**")
+        gr.Markdown(t("paths_header", lang))
         with gr.Row():
-            source_path = gr.Textbox(label="Source path", scale=4)
-            button_browse_source = gr.Button("📁 Browse")
+            source_path = gr.Textbox(label=t("source_path_label", lang), scale=4)
+            button_browse_source = gr.Button(t("browse_button", lang))
         with gr.Row():
-            cache_directory = gr.Textbox(label="Cache directory", scale=4)
-            button_browse_cache = gr.Button("📁 Browse")
+            cache_directory = gr.Textbox(
+                label=t("cache_directory_label", lang), scale=4
+            )
+            button_browse_cache = gr.Button(t("browse_button", lang))
         with gr.Row():
-            control_directory = gr.Textbox(label="Control directory", scale=4)
-            button_browse_control = gr.Button("📁 Browse")
+            control_directory = gr.Textbox(
+                label=t("control_directory_label", lang), scale=4
+            )
+            button_browse_control = gr.Button(t("browse_button", lang))
 
-        gr.Markdown("**Overrides** (blank = use the General default above)")
+        gr.Markdown(t("overrides_header", lang))
         with gr.Row():
             caption_extension = gr.Textbox(
-                label="Caption Extension (override)", placeholder=".txt"
+                label=t("caption_ext_override_label", lang), placeholder=".txt"
             )
             resolution = gr.Textbox(
-                label="Resolution override (W,H)", placeholder="960,544"
+                label=t("resolution_override_label", lang), placeholder="960,544"
             )
-            batch_size = gr.Number(label="Batch Size override", precision=0)
-            num_repeats = gr.Number(label="Num Repeats", precision=0)
+            batch_size = gr.Number(
+                label=t("batch_size_override_label", lang), precision=0
+            )
+            num_repeats = gr.Number(
+                label=t("num_repeats_override_label", lang), precision=0
+            )
 
         with gr.Row():
-            enable_bucket = gr.Checkbox(label="Enable Bucket override")
-            bucket_no_upscale = gr.Checkbox(label="Bucket No Upscale override")
-            no_resize_control = gr.Checkbox(label="No Resize Control")
+            enable_bucket = gr.Checkbox(label=t("enable_bucket_override_label", lang))
+            bucket_no_upscale = gr.Checkbox(
+                label=t("bucket_no_upscale_override_label", lang)
+            )
+            no_resize_control = gr.Checkbox(label=t("no_resize_control_label", lang))
 
         control_resolution = gr.Textbox(
-            label="Control Resolution (W,H)", placeholder="960,544"
+            label=t("control_resolution_label", lang), placeholder="960,544"
         )
 
         with gr.Column(visible=False) as video_group:
-            gr.Markdown("**Video-only fields**")
-            target_frames = gr.Textbox(label="Target Frames", placeholder="1,25,45")
+            gr.Markdown(t("video_only_header", lang))
+            target_frames = gr.Textbox(
+                label=t("target_frames_label", lang), placeholder="1,25,45"
+            )
             with gr.Row():
                 frame_extraction = gr.Dropdown(
-                    label="Frame Extraction",
+                    label=t("frame_extraction_label", lang),
                     choices=FRAME_EXTRACTION_CHOICES,
                     value=FRAME_EXTRACTION_CHOICES[0],
                 )
-                frame_stride = gr.Number(label="Frame Stride", precision=0)
-                frame_sample = gr.Number(label="Frame Sample", precision=0)
-                max_frames = gr.Number(label="Max Frames", precision=0)
-            source_fps = gr.Textbox(label="Source FPS", placeholder="30")
+                frame_stride = gr.Number(
+                    label=t("frame_stride_label", lang), precision=0
+                )
+                frame_sample = gr.Number(
+                    label=t("frame_sample_label", lang), precision=0
+                )
+                max_frames = gr.Number(label=t("max_frames_label", lang), precision=0)
+            source_fps = gr.Textbox(label=t("source_fps_label", lang), placeholder="30")
 
         unknown_keys_note = gr.Markdown("")
 
-        button_apply = gr.Button(
-            "✅ Apply changes to selected dataset", variant="primary"
+        button_apply = gr.Button(t("apply_changes_button", lang), variant="primary")
+
+    with gr.Accordion(
+        t("dataset_preview_accordion_title", lang),
+        open=True,
+        elem_classes="samples_background",
+    ):
+        gr.Markdown(t("dataset_preview_desc", lang))
+        button_preview = gr.Button(t("preview_this_dataset_button", lang))
+        preview_status = gr.Markdown("")
+        preview_gallery = gr.Gallery(
+            label=t("image_caption_gallery_label", lang),
+            columns=6,
+            height=480,
+            object_fit="contain",
+            show_label=True,
         )
 
-    gr.Markdown("### 🔍 Validation")
+    gr.Markdown(t("validation_header", lang))
     validation_panel = gr.Markdown(_format_validation([]))
 
     detail_editor_widgets = [
@@ -519,10 +618,31 @@ def dataset_config_tab(
             datasets[idx]
         )
 
+    def preview_selected_dataset(src_path, cache_dir, cap_ext, general_cap_ext):
+        ext = (cap_ext or "").strip() or (general_cap_ext or "").strip() or ".txt"
+        return scan_dataset_dirs(src_path, cache_dir, ext, lang=lang)
+
+    preview_inputs = [
+        source_path,
+        cache_directory,
+        caption_extension,
+        general_caption_extension,
+    ]
+
     datasets_table.select(
         fn=on_select_row,
         inputs=[datasets_state],
         outputs=[selected_index_state, status_markdown] + detail_editor_widgets,
+    ).then(
+        fn=preview_selected_dataset,
+        inputs=preview_inputs,
+        outputs=[preview_gallery, preview_status],
+    )
+
+    button_preview.click(
+        fn=preview_selected_dataset,
+        inputs=preview_inputs,
+        outputs=[preview_gallery, preview_status],
     )
 
     def add_dataset(datasets, is_video):
@@ -789,10 +909,8 @@ def dataset_config_tab(
             + (_format_validation(validation),)
         )
 
-    button_open.click(
-        fn=lambda path: open_dataset_config(True, path),
-        inputs=[dataset_path],
-        outputs=[
+    open_dataset_outputs = (
+        [
             dataset_path,
             datasets_state,
             datasets_table,
@@ -801,42 +919,110 @@ def dataset_config_tab(
         ]
         + general_widgets
         + detail_editor_widgets
-        + [validation_panel],
+        + [validation_panel]
+    )
+
+    button_open.click(
+        fn=lambda path: open_dataset_config(True, path),
+        inputs=[dataset_path],
+        outputs=open_dataset_outputs,
+    )
+
+    # Load a bookmarked dataset config without touching the native file dialog
+    # (ask_for_file=False) — this is what makes it usable over a remote/web
+    # session, where Browse/Open's tkinter dialog has no desktop to appear on.
+    button_load_registered.click(
+        fn=lambda path: open_dataset_config(False, path),
+        inputs=[registered_dataset_dropdown],
+        outputs=open_dataset_outputs,
+    )
+
+    def do_upload(name, dir_files, multi_files):
+        status, gallery, config_path, choices = upload_dataset_files(
+            name, dir_files, multi_files, lang=lang
+        )
+        return status, gallery, config_path, gr.Dropdown(choices=choices)
+
+    upload_btn.click(
+        fn=do_upload,
+        inputs=[upload_dataset_name, upload_dir_files, upload_multi_files],
+        outputs=[
+            upload_status,
+            upload_gallery,
+            dataset_path,
+            registered_dataset_dropdown,
+        ],
+    ).then(
+        # Immediately load the freshly-generated config into the full editor
+        # below, so the uploaded dataset is ready to use right away.
+        fn=lambda path: open_dataset_config(False, path),
+        inputs=[dataset_path],
+        outputs=open_dataset_outputs,
+    )
+
+    def reset_upload():
+        # Clear the whole upload panel to start a fresh dataset (name, both
+        # file pickers, status, gallery) without touching anything already
+        # loaded into the editor below.
+        return "", None, None, "", []
+
+    upload_reset_btn.click(
+        fn=reset_upload,
+        inputs=[],
+        outputs=[
+            upload_dataset_name,
+            upload_dir_files,
+            upload_multi_files,
+            upload_status,
+            upload_gallery,
+        ],
+    )
+
+    def register_and_refresh(path):
+        register_dataset_config(path)
+        return gr.Dropdown(choices=dataset_config_choices())
+
+    button_register_dataset.click(
+        fn=register_and_refresh,
+        inputs=[dataset_path],
+        outputs=[registered_dataset_dropdown],
     )
 
     def do_save(path, datasets, save_as, *general_values):
         try:
             general = _general_from_widgets(*general_values)
         except ValueError as e:
-            return path, f"ERROR: General: {e}"
+            return path, f"ERROR: General: {e}", gr.Dropdown()
         validation = validate_dataset_config(general, datasets)
         errors = [m for m in validation if m.startswith("ERROR:")]
         if errors:
-            return path, _format_validation(validation)
+            return path, _format_validation(validation), gr.Dropdown()
 
         if save_as or not path:
             new_path = get_saveasfile_path(
                 path, defaultextension=".toml", extension_name="TOML files (*.toml)"
             )
             if not new_path:
-                return path, _format_validation(validation)
+                return path, _format_validation(validation), gr.Dropdown()
             path = new_path
 
         save_dataset_config(path, general, datasets)
         config.config.setdefault("settings", {})["dataset_config_edit_path"] = path
         config.save_config(config.config, config_file_path)
         log.info(f"Dataset config saved to {path}")
-        return path, _format_validation(validation)
+        # Auto-register on every save so it shows up in the dropdown next time.
+        register_dataset_config(path)
+        return path, _format_validation(validation), gr.Dropdown(choices=dataset_config_choices())
 
     button_save.click(
         fn=lambda path, datasets, *g: do_save(path, datasets, False, *g),
         inputs=[dataset_path, datasets_state] + general_widgets,
-        outputs=[dataset_path, validation_panel],
+        outputs=[dataset_path, validation_panel, registered_dataset_dropdown],
     )
     button_save_as.click(
         fn=lambda path, datasets, *g: do_save(path, datasets, True, *g),
         inputs=[dataset_path, datasets_state] + general_widgets,
-        outputs=[dataset_path, validation_panel],
+        outputs=[dataset_path, validation_panel, registered_dataset_dropdown],
     )
 
     if training_dataset_config_component is not None:

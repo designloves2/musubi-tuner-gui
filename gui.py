@@ -10,6 +10,8 @@ from musubi_tuner_gui.custom_logging import setup_logging
 from musubi_tuner_gui.class_gui_config import GUIConfig
 from musubi_tuner_gui.settings_gui import settings_tab
 from musubi_tuner_gui.dataset_config_gui import dataset_config_tab
+from musubi_tuner_gui.tj_projects_gui import tj_projects_tab
+from musubi_tuner_gui.tj_i18n import t, get_language
 import toml
 
 # Constants
@@ -30,15 +32,16 @@ def read_file_content(file_path):
 def initialize_ui_interface(
     config, config_file_path, headless, release_info, readme_content
 ):
+    lang = get_language(config)
     # Create the main Gradio Blocks interface
     ui_interface = gr.Blocks(title=f"Musubi Tuner GUI {release_info}")
     with ui_interface:
-        with gr.Tab("Musubi Tuner"):
+        with gr.Tab(t("tab_musubi_tuner", lang)):
             training_dataset_config_component = lora_tab(
                 headless=headless, config=config
             )
 
-        with gr.Tab("Dataset Config"):
+        with gr.Tab(t("tab_dataset_config", lang)):
             dataset_config_tab(
                 headless=headless,
                 config=config,
@@ -46,12 +49,15 @@ def initialize_ui_interface(
                 training_dataset_config_component=training_dataset_config_component,
             )
 
-        with gr.Tab("Settings"):
+        with gr.Tab(t("tab_output", lang)):
+            tj_projects_tab(headless=headless, config=config)
+
+        with gr.Tab(t("tab_settings", lang)):
             settings_tab(config=config, config_file_path=config_file_path)
 
-        with gr.Tab("About"):
+        with gr.Tab(t("tab_about", lang)):
             gr.Markdown(f"Musubi Tuner GUI {release_info}")
-            with gr.Tab("README"):
+            with gr.Tab(t("tab_readme", lang)):
                 gr.Markdown(readme_content)
         
         gr.Markdown(f"<div class='ver-class'>{release_info}</div>")
@@ -122,10 +128,16 @@ def UI(**kwargs):
         "css": css,
         "head": head,
         "theme": gr.themes.Default(),
+        # Allow the gallery/preview to serve images from wherever datasets/models live.
+        "allowed_paths": [d for d in ("C:/", "D:/", "M:/") if os.path.isdir(d)],
     }
 
     # This line filters out any key-value pairs from `launch_params` where the value is `None`, ensuring only valid parameters are passed to the `launch` function.
     launch_params = {k: v for k, v in launch_params.items() if v is not None}
+    # Gradio's default_concurrency_limit is 1: without raising it, every event
+    # (including the monitoring Timers) shares one global slot with the
+    # long-blocking training-wait handler and freezes for the whole training run.
+    ui_interface.queue(default_concurrency_limit=10)
     ui_interface.launch(**launch_params)
 
 

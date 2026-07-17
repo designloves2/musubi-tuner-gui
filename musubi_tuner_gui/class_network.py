@@ -2,6 +2,7 @@ import gradio as gr
 import toml
 from .class_gui_config import GUIConfig
 from .common_gui import path_field
+from .tj_i18n import t, get_language
 
 
 class Network:
@@ -12,49 +13,52 @@ class Network:
     ) -> None:
         self.config = config
         self.headless = headless
+        self.lang = get_language(config)
 
         # Initialize the UI components
         self.initialize_ui_components()
 
     def initialize_ui_components(self) -> None:
+        lang = self.lang
         with gr.Row():
             self.network_module = gr.Textbox(
-                label="Network Module",
-                placeholder="Module of the network to train",
+                label=t("net_network_module_label", lang),
+                placeholder=t("net_network_module_placeholder", lang),
                 value=self.config.get("network_module", None),
             )
 
             self.dim_from_weights = gr.Checkbox(
-                label="Determine Dimensions from Network Weights",
+                label=t("net_dim_from_weights_label", lang),
                 value=self.config.get("dim_from_weights", False),
             )
 
         self.network_weights = path_field(
-            label="Network Weights",
-            placeholder="Path to pretrained weights for network",
+            lang=lang,
+            label=t("net_network_weights_label", lang),
+            placeholder=t("net_network_weights_placeholder", lang),
             value=self.config.get("network_weights", None),
         )
 
         with gr.Row():
             self.network_dim = gr.Number(
-                label="Network Dimensions",
-                info="Specify dimensions for the network (depends on the module)",
+                label=t("net_network_dim_label", lang),
+                info=t("net_network_dim_info", lang),
                 value=self.config.get("network_dim", 32),
                 step=1,
                 interactive=True,
             )
 
             self.network_alpha = gr.Number(
-                label="Network Alpha",
-                info="Alpha value for LoRA weight scaling (default: 1)",
+                label=t("net_network_alpha_label", lang),
+                info=t("net_network_alpha_info", lang),
                 value=self.config.get("network_alpha", 1),
                 step=1,
                 interactive=True,
             )
 
             self.network_dropout = gr.Number(
-                label="Network Dropout",
-                info="Dropout rate (0 or None for no dropout, 1 drops all neurons)",
+                label=t("net_network_dropout_label", lang),
+                info=t("net_network_dropout_info", lang),
                 value=self.config.get("network_dropout", 0),
                 step=0.01,
                 minimum=0,
@@ -63,8 +67,8 @@ class Network:
             )
 
             self.scale_weight_norms = gr.Number(
-                label="Scale Weight Norms",
-                info="Scaling factor for weights (1 is a good starting point)",
+                label=t("net_scale_weight_norms_label", lang),
+                info=t("net_scale_weight_norms_info", lang),
                 value=self.config.get("scale_weight_norms", None),
                 step=0.001,
                 interactive=True,
@@ -73,33 +77,34 @@ class Network:
 
         with gr.Row():
             self.network_args = gr.Textbox(
-                label="Network Arguments",
-                placeholder="Additional network arguments (key=value)",
+                label=t("net_network_args_label", lang),
+                placeholder=t("net_network_args_placeholder", lang),
                 value=self.config.get("network_args", ""),
                 interactive=True,
             )
 
         self.base_weights = path_field(
-            label="Base Weights",
-            placeholder="Paths to network weights to merge into the model before training",
+            lang=lang,
+            label=t("net_base_weights_label", lang),
+            placeholder=t("net_base_weights_placeholder", lang),
             value=self.config.get("base_weights", ""),
         )
 
         with gr.Row():
             self.base_weights_multiplier = gr.Textbox(
-                label="Base Weights Multiplier",
-                placeholder="Multipliers for network weights to merge into the model before training",
+                label=t("net_base_weights_multiplier_label", lang),
+                placeholder=t("net_base_weights_multiplier_placeholder", lang),
                 value=self.config.get("base_weights_multiplier", ""),
             )
 
         with gr.Row():
             self.training_comment = gr.Textbox(
-                label="Training Comment",
-                placeholder="Arbitrary comment string to store in metadata",
+                label=t("net_training_comment_label", lang),
+                placeholder=t("net_training_comment_placeholder", lang),
                 value=self.config.get("training_comment", None),
             )
 
             self.no_metadata = gr.Checkbox(
-                label="Do Not Save Metadata",
+                label=t("net_no_metadata_label", lang),
                 value=self.config.get("no_metadata", False),
             )

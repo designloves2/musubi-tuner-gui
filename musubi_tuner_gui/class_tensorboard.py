@@ -17,13 +17,14 @@ visibility = True
 from threading import Thread, Event
 from .custom_logging import setup_logging
 from .common_gui import setup_environment
+from .tj_i18n import t, get_language, DEFAULT_LANG
 
 
 class TensorboardManager:
     DEFAULT_TENSORBOARD_PORT = 6006
     DEFAULT_TENSORBOARD_HOST = "0.0.0.0"
 
-    def __init__(self, logging_dir, headless: bool = False, wait_time=5):
+    def __init__(self, logging_dir, headless: bool = False, wait_time=5, config=None):
         self.logging_dir = logging_dir
         self.headless = headless
         self.wait_time = wait_time
@@ -37,6 +38,7 @@ class TensorboardManager:
         self.log = setup_logging()
         self.thread = None
         self.stop_event = Event()
+        self.lang = get_language(config) if config is not None else DEFAULT_LANG
 
         self.gradio_interface()
 
@@ -115,17 +117,17 @@ class TensorboardManager:
 
         with gr.Row():
             button_start_tensorboard = gr.Button(
-                value="Start tensorboard",
+                value=t("tb_start_button", self.lang),
                 elem_id="myTensorButton",
                 visible=visibility,
             )
             button_stop_tensorboard = gr.Button(
-                value="Stop tensorboard",
+                value=t("tb_stop_button", self.lang),
                 visible=visibility and self.headless,
                 elem_id="myTensorButtonStop",
             )
             button_open_tensorboard = gr.Button(
-                value="Open tensorboard",
+                value=t("tb_open_button", self.lang),
                 elem_id="myTensorButton",
                 visible=not visibility,
                 link=f"http://localhost:{self.tensorboard_port}",

@@ -176,3 +176,7 @@ test/output
 uv.lock
 musubi_tuner_gui.log
 .wargames
+# TJ additions: user-uploaded datasets and local registries shouldn't be committed
+Dataset/
+tj_projects.json
+tj_dataset_configs.json

@@ -4,6 +4,7 @@ import shlex
 
 from .class_gui_config import GUIConfig
 from .custom_logging import setup_logging
+from .tj_i18n import t, get_language
 
 # Set up logging
 log = setup_logging()
@@ -15,42 +16,43 @@ class AccelerateLaunch:
         config: GUIConfig = {},
     ) -> None:
         self.config = config
+        lang = get_language(config)
 
-        with gr.Accordion("Resource Selection", open=True):
+        with gr.Accordion(t("al_resource_selection_title", lang), open=True):
             with gr.Row():
                 self.mixed_precision = gr.Dropdown(
-                    label="Mixed precision",
+                    label=t("al_mixed_precision_label", lang),
                     choices=["no", "fp16", "bf16", "fp8"],
                     value=self.config.get("mixed_precision", "fp16"),
-                    info="Whether or not to use mixed precision training.",
+                    info=t("al_mixed_precision_info", lang),
                 )
                 self.num_processes = gr.Number(
-                    label="Number of processes",
+                    label=t("al_num_processes_label", lang),
                     value=self.config.get("num_processes", 1),
                     # precision=0,
                     step=1,
                     minimum=1,
-                    info="The total number of processes to be launched in parallel.",
+                    info=t("al_num_processes_info", lang),
                 )
                 self.num_machines = gr.Number(
-                    label="Number of machines",
+                    label=t("al_num_machines_label", lang),
                     value=self.config.get("num_machines", 1),
                     # precision=0,
                     step=1,
                     minimum=1,
-                    info="The total number of machines used in this training.",
+                    info=t("al_num_machines_info", lang),
                 )
                 self.num_cpu_threads_per_process = gr.Slider(
                     minimum=1,
                     maximum=os.cpu_count(),
                     step=1,
-                    label="Number of CPU threads per core",
+                    label=t("al_num_cpu_threads_per_process_label", lang),
                     value=self.config.get("num_cpu_threads_per_process", 2),
-                    info="The number of CPU threads per process.",
+                    info=t("al_num_cpu_threads_per_process_info", lang),
                 )
             with gr.Row():
                 self.dynamo_backend = gr.Dropdown(
-                    label="Dynamo backend",
+                    label=t("al_dynamo_backend_label", lang),
                     choices=[
                         "no",
                         "eager",
@@ -67,43 +69,43 @@ class AccelerateLaunch:
                         "tvm",
                     ],
                     value=self.config.get("dynamo_backend", "no"),
-                    info="The backend to use for the dynamo JIT compiler.",
+                    info=t("al_dynamo_backend_info", lang),
                 )
                 self.dynamo_mode = gr.Dropdown(
-                    label="Dynamo mode",
+                    label=t("al_dynamo_mode_label", lang),
                     choices=[
                         "default",
                         "reduce-overhead",
                         "max-autotune",
                     ],
                     value=self.config.get("dynamo_mode", "default"),
-                    info="Choose a mode to optimize your training with dynamo.",
+                    info=t("al_dynamo_mode_info", lang),
                 )
                 self.dynamo_use_fullgraph = gr.Checkbox(
-                    label="Dynamo use fullgraph",
+                    label=t("al_dynamo_use_fullgraph_label", lang),
                     value=self.config.get("dynamo_use_fullgraph", False),
-                    info="Whether to use full graph mode for dynamo or it is ok to break model into several subgraphs",
+                    info=t("al_dynamo_use_fullgraph_info", lang),
                 )
                 self.dynamo_use_dynamic = gr.Checkbox(
-                    label="Dynamo use dynamic",
+                    label=t("al_dynamo_use_dynamic_label", lang),
                     value=self.config.get("dynamo_use_dynamic", False),
-                    info="Whether to enable dynamic shape tracing.",
+                    info=t("al_dynamo_use_dynamic_info", lang),
                 )
 
-        with gr.Accordion("Hardware Selection", open=True):
+        with gr.Accordion(t("al_hardware_selection_title", lang), open=True):
             with gr.Row():
                 self.multi_gpu = gr.Checkbox(
-                    label="Multi GPU",
+                    label=t("al_multi_gpu_label", lang),
                     value=self.config.get("multi_gpu", False),
-                    info="Whether or not this should launch a distributed GPU training.",
+                    info=t("al_multi_gpu_info", lang),
                 )
-        with gr.Accordion("Distributed GPUs", open=True):
+        with gr.Accordion(t("al_distributed_gpus_title", lang), open=True):
             with gr.Row():
                 self.gpu_ids = gr.Textbox(
-                    label="GPU IDs",
+                    label=t("al_gpu_ids_label", lang),
                     value=self.config.get("gpu_ids", ""),
-                    placeholder="example: 0,1",
-                    info=" What GPUs (by id) should be used for training on this machine as a comma-separated list",
+                    placeholder=t("al_gpu_ids_placeholder", lang),
+                    info=t("al_gpu_ids_info", lang),
                 )
 
                 def validate_gpu_ids(value):
@@ -122,20 +124,20 @@ class AccelerateLaunch:
                 self.gpu_ids.blur(fn=validate_gpu_ids, inputs=self.gpu_ids)
 
                 self.main_process_port = gr.Number(
-                    label="Main process port",
+                    label=t("al_main_process_port_label", lang),
                     value=self.config.get("main_process_port", 0),
                     # precision=1,
                     step=1,
                     minimum=0,
                     maximum=65535,
-                    info="The port to use to communicate with the machine of rank 0.",
+                    info=t("al_main_process_port_info", lang),
                 )
         with gr.Row():
             self.extra_accelerate_launch_args = gr.Textbox(
-                label="Extra accelerate launch arguments",
+                label=t("al_extra_args_label", lang),
                 value=self.config.get("extra_accelerate_launch_args", ""),
-                placeholder="example: --same_network --machine_rank 4",
-                info="List of extra parameters to pass to accelerate launch",
+                placeholder=t("al_extra_args_placeholder", lang),
+                info=t("al_extra_args_info", lang),
             )
 
     def run_cmd(run_cmd: list, **kwargs):

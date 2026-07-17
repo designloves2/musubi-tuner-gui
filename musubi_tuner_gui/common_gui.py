@@ -358,6 +358,7 @@ def path_field(
     default_extension: str = None,
     extension_name: str = "Files",
     scale: int = 4,
+    lang: str = None,
 ):
     """
     Renders a Textbox paired with a "📁 Browse" button that opens a native
@@ -384,7 +385,13 @@ def path_field(
             info=info,
             scale=scale,
         )
-        button = gr.Button("📁 Browse", scale=1, elem_classes="path-field-browse")
+        from .tj_i18n import t, DEFAULT_LANG
+
+        button = gr.Button(
+            t("browse_button", lang or DEFAULT_LANG),
+            scale=1,
+            elem_classes="path-field-browse",
+        )
 
     if is_folder:
         button.click(
