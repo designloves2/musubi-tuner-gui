@@ -8,6 +8,7 @@ from .common_gui import (
     create_refresh_button,
     document_symbol,
 )
+from .tj_i18n import t, get_language
 
 
 class AdvancedTraining:
@@ -52,9 +53,10 @@ class AdvancedTraining:
             "advanced.log_tracker_config_dir", "./logs"
         )
 
+        lang = get_language(config)
         with gr.Row():
             self.additional_parameters = gr.Textbox(
-                label="Additional parameters",
-                placeholder='(Optional) Use to provide additional parameters not handled by the GUI. Eg: --some_parameters "value"',
+                label=t("adv_additional_parameters_label", lang),
+                placeholder=t("adv_additional_parameters_placeholder", lang),
                 value=self.config.get("additional_parameters", ""),
             )

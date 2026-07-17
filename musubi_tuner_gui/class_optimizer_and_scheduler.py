@@ -8,6 +8,7 @@ from .common_gui import (
     create_refresh_button,
     document_symbol,
 )
+from .tj_i18n import t, get_language
 
 
 class OptimizerAndScheduler:
@@ -40,19 +41,20 @@ class OptimizerAndScheduler:
         """
         self.headless = headless
         self.config = config
+        lang = get_language(config)
 
         with gr.Row():
             self.learning_rate = gr.Number(
-                label="Learning Rate",
-                info="Specify the learning rate (e.g., 2.0e-6)",
+                label=t("opt_learning_rate_label", lang),
+                info=t("opt_learning_rate_info", lang),
                 value=self.config.get("learning_rate", 2.0e-6),
                 interactive=True,
                 step=1e-6,
             )
 
             self.optimizer_type = gr.Dropdown(
-                label="Optimizer Type",
-                info="Select the optimizer to use",
+                label=t("opt_optimizer_type_label", lang),
+                info=t("opt_optimizer_type_info", lang),
                 choices=["AdamW", "AdamW8bit", "AdaFactor"],
                 allow_custom_value=True,
                 value=self.config.get("optimizer_type", "AdamW"),
@@ -60,14 +62,14 @@ class OptimizerAndScheduler:
             )
 
             self.optimizer_args = gr.Textbox(
-                label="Optimizer Arguments",
-                placeholder='Additional arguments for optimizer (e.g., "weight_decay=0.01 betas=0.9,0.999")',
+                label=t("opt_optimizer_args_label", lang),
+                placeholder=t("opt_optimizer_args_placeholder", lang),
                 value=self.config.get("optimizer_args", ""),
             )
 
             self.max_grad_norm = gr.Number(
-                label="Max Gradient Norm",
-                info="Maximum gradient norm (0 for no clipping)",
+                label=t("opt_max_grad_norm_label", lang),
+                info=t("opt_max_grad_norm_info", lang),
                 value=self.config.get("max_grad_norm", 1.0),
                 interactive=True,
                 step=0.0001,
@@ -75,8 +77,8 @@ class OptimizerAndScheduler:
 
         with gr.Row():
             self.lr_scheduler = gr.Dropdown(
-                label="Learning Rate Scheduler",
-                info="Select the learning rate scheduler to use",
+                label=t("opt_lr_scheduler_label", lang),
+                info=t("opt_lr_scheduler_info", lang),
                 choices=["constant", "linear", "cosine", "constant_with_warmup"],
                 allow_custom_value=False,
                 value=self.config.get("lr_scheduler", "constant"),
@@ -84,8 +86,8 @@ class OptimizerAndScheduler:
             )
 
             self.lr_warmup_steps = gr.Number(
-                label="LR Warmup Steps",
-                info="Number of warmup steps or ratio of train steps (e.g., 0.1 for 10%)",
+                label=t("opt_lr_warmup_steps_label", lang),
+                info=t("opt_lr_warmup_steps_info", lang),
                 value=self.config.get("lr_warmup_steps", 0),
                 interactive=True,
                 step=0.01,
@@ -93,8 +95,8 @@ class OptimizerAndScheduler:
             )
 
             self.lr_decay_steps = gr.Number(
-                label="LR Decay Steps",
-                info="Number of decay steps or ratio of train steps (e.g., 0.1 for 10%)",
+                label=t("opt_lr_decay_steps_label", lang),
+                info=t("opt_lr_decay_steps_info", lang),
                 value=self.config.get("lr_decay_steps", 0),
                 interactive=True,
                 step=0.01,
@@ -102,8 +104,8 @@ class OptimizerAndScheduler:
             )
 
             self.lr_scheduler_num_cycles = gr.Number(
-                label="LR Scheduler Num Cycles",
-                info="Number of restarts for cosine scheduler with restarts",
+                label=t("opt_lr_scheduler_num_cycles_label", lang),
+                info=t("opt_lr_scheduler_num_cycles_info", lang),
                 value=self.config.get("lr_scheduler_num_cycles", 1),
                 interactive=True,
                 minimum=1,
@@ -111,38 +113,38 @@ class OptimizerAndScheduler:
 
         with gr.Row():
             self.lr_scheduler_power = gr.Number(
-                label="LR Scheduler Polynomial Power",
-                info="Polynomial power for polynomial scheduler",
+                label=t("opt_lr_scheduler_power_label", lang),
+                info=t("opt_lr_scheduler_power_info", lang),
                 value=self.config.get("lr_scheduler_power", 1),
                 step=0.001,
                 interactive=True,
             )
 
             self.lr_scheduler_timescale = gr.Number(
-                label="LR Scheduler Timescale",
-                info="Timescale for inverse sqrt scheduler (defaults to num_warmup_steps)",
+                label=t("opt_lr_scheduler_timescale_label", lang),
+                info=t("opt_lr_scheduler_timescale_info", lang),
                 value=self.config.get("lr_scheduler_timescale", None),
                 step=1,
                 interactive=True,
             )
 
             self.lr_scheduler_min_lr_ratio = gr.Number(
-                label="LR Scheduler Min LR Ratio",
-                info="Minimum LR as a ratio of initial LR for cosine with min LR scheduler",
+                label=t("opt_lr_scheduler_min_lr_ratio_label", lang),
+                info=t("opt_lr_scheduler_min_lr_ratio_info", lang),
                 value=self.config.get("lr_scheduler_min_lr_ratio", None),
                 step=0.001,
                 interactive=True,
             )
 
             self.lr_scheduler_type = gr.Textbox(
-                label="LR Scheduler Type",
-                placeholder="Specify custom scheduler module",
+                label=t("opt_lr_scheduler_type_label", lang),
+                placeholder=t("opt_lr_scheduler_type_placeholder", lang),
                 value=self.config.get("lr_scheduler_type", ""),
             )
 
         with gr.Row():
             self.lr_scheduler_args = gr.Textbox(
-                label="LR Scheduler Arguments",
-                placeholder='Additional arguments for scheduler (e.g., "T_max=100")',
+                label=t("opt_lr_scheduler_args_label", lang),
+                placeholder=t("opt_lr_scheduler_args_placeholder", lang),
                 value=" ".join(self.config.get("lr_scheduler_args", []) or []),
             )

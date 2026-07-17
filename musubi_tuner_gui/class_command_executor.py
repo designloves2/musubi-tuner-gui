@@ -8,6 +8,7 @@ import sys
 import gradio as gr
 
 from .custom_logging import setup_logging
+from .tj_i18n import t, get_language, DEFAULT_LANG
 
 # Set up logging
 log = setup_logging()
@@ -18,12 +19,13 @@ class CommandExecutor:
     A class to execute and manage commands.
     """
 
-    def __init__(self, headless: bool = False):
+    def __init__(self, headless: bool = False, config=None):
         """
         Initialize the CommandExecutor.
         """
         self.headless = headless
         self.process = None
+        lang = get_language(config) if config is not None else DEFAULT_LANG
 
         # Live output capture for the "실시간 학습 로그" viewer (tj_projects_gui.py):
         # a bounded in-memory ring buffer of recent stdout/stderr lines, plus an
@@ -33,10 +35,12 @@ class CommandExecutor:
         self._log_file = None
         self._pump_thread = None
 
-        self.button_run = gr.Button("▶️ Start training", variant="primary", scale=1)
+        self.button_run = gr.Button(
+            t("ce_start_training_button", lang), variant="primary", scale=1
+        )
 
         self.button_stop_training = gr.Button(
-            "⏹️ Stop training",
+            t("ce_stop_training_button", lang),
             visible=self.process is not None or headless,
             variant="stop",
             scale=1,

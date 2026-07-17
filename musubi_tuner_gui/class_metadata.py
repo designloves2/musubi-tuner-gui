@@ -1,6 +1,7 @@
 import gradio as gr
 
 from .class_gui_config import GUIConfig
+from .tj_i18n import t, get_language
 
 
 class MetaData:
@@ -9,36 +10,37 @@ class MetaData:
         config: GUIConfig = {},
     ) -> None:
         self.config = config
+        lang = get_language(config)
 
         with gr.Row():
             self.metadata_title = gr.Textbox(
-                label="Metadata title",
-                placeholder="(optional) title for model metadata (default is output_name)",
+                label=t("md_title_label", lang),
+                placeholder=t("md_title_placeholder", lang),
                 interactive=True,
                 value=self.config.get("metadata_title", ""),
             )
             self.metadata_author = gr.Textbox(
-                label="Metadata author",
-                placeholder="(optional) author name for model metadata",
+                label=t("md_author_label", lang),
+                placeholder=t("md_author_placeholder", lang),
                 interactive=True,
                 value=self.config.get("metadata_author", ""),
             )
         self.metadata_description = gr.Textbox(
-            label="Metadata description",
-            placeholder="(optional) description for model metadata",
+            label=t("md_description_label", lang),
+            placeholder=t("md_description_placeholder", lang),
             interactive=True,
             value=self.config.get("metadata_description", ""),
         )
         with gr.Row():
             self.metadata_license = gr.Textbox(
-                label="Metadata license",
-                placeholder="(optional) license for model metadata",
+                label=t("md_license_label", lang),
+                placeholder=t("md_license_placeholder", lang),
                 interactive=True,
                 value=self.config.get("metadata_license", ""),
             )
             self.metadata_tags = gr.Textbox(
-                label="Metadata tags",
-                placeholder="(optional) tags for model metadata, separated by comma",
+                label=t("md_tags_label", lang),
+                placeholder=t("md_tags_placeholder", lang),
                 interactive=True,
                 value=self.config.get("metadata_tags", ""),
             )

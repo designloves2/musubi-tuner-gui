@@ -2,6 +2,7 @@ import gradio as gr
 import toml
 from .class_gui_config import GUIConfig
 from .common_gui import path_field
+from .tj_i18n import t, get_language
 
 
 class SaveLoadSettings:
@@ -12,69 +13,73 @@ class SaveLoadSettings:
     ) -> None:
         self.config = config
         self.headless = headless
+        self.lang = get_language(config)
 
         # Initialize the UI components
         self.initialize_ui_components()
 
     def initialize_ui_components(self) -> None:
+        lang = self.lang
         self.output_dir = path_field(
-            label="Output Directory",
-            placeholder="Directory to save the trained model",
+            lang=lang,
+            label=t("sl_output_dir_label", lang),
+            placeholder=t("sl_output_dir_placeholder", lang),
             value=self.config.get("output_dir", None),
             is_folder=True,
         )
 
         with gr.Row():
             self.output_name = gr.Textbox(
-                label="Output Name",
-                placeholder="Base name of the trained model file (excluding extension)",
+                label=t("sl_output_name_label", lang),
+                placeholder=t("sl_output_name_placeholder", lang),
                 value=self.config.get("output_name", "lora"),
                 interactive=True,
             )
 
             self.save_precision = gr.Dropdown(
-                label="Save Precision",
-                info="Precision for saved network weights (default: fp32)",
+                label=t("sl_save_precision_label", lang),
+                info=t("sl_save_precision_info", lang),
                 choices=["float", "fp32", "fp16", "bf16"],
                 value=self.config.get("save_precision", "fp32"),
                 interactive=True,
             )
 
         self.resume = path_field(
-            label="Resume Training State",
-            placeholder="Path to saved state to resume training",
+            lang=lang,
+            label=t("sl_resume_label", lang),
+            placeholder=t("sl_resume_placeholder", lang),
             value=self.config.get("resume", None),
             is_folder=True,
         )
 
         with gr.Row():
             self.save_every_n_epochs = gr.Number(
-                label="Save Every N Epochs",
-                info="Save a checkpoint every N epochs",
+                label=t("sl_save_every_n_epochs_label", lang),
+                info=t("sl_save_every_n_epochs_info", lang),
                 value=self.config.get("save_every_n_epochs", None),
                 step=1,
                 interactive=True,
             )
 
             self.save_last_n_epochs = gr.Number(
-                label="Save Last N Epochs",
-                info="Save only the last N checkpoints when saving every N epochs",
+                label=t("sl_save_last_n_epochs_label", lang),
+                info=t("sl_save_last_n_epochs_info", lang),
                 value=self.config.get("save_last_n_epochs", None),
                 step=1,
                 interactive=True,
             )
 
             self.save_every_n_steps = gr.Number(
-                label="Save Every N Steps",
-                info="Save a checkpoint every N steps",
+                label=t("sl_save_every_n_steps_label", lang),
+                info=t("sl_save_every_n_steps_info", lang),
                 value=self.config.get("save_every_n_steps", None),
                 interactive=True,
                 step=1,
             )
 
             self.save_last_n_steps = gr.Number(
-                label="Save Last N Steps",
-                info="Save checkpoints until N steps elapsed (remove older ones afterward)",
+                label=t("sl_save_last_n_steps_label", lang),
+                info=t("sl_save_last_n_steps_info", lang),
                 value=self.config.get("save_last_n_steps", None),
                 step=1,
                 interactive=True,
@@ -82,28 +87,28 @@ class SaveLoadSettings:
 
         with gr.Row():
             self.save_last_n_epochs_state = gr.Number(
-                label="Save Last N Epochs State",
-                info="Save states of the last N epochs (overrides save_last_n_epochs)",
+                label=t("sl_save_last_n_epochs_state_label", lang),
+                info=t("sl_save_last_n_epochs_state_info", lang),
                 value=self.config.get("save_last_n_epochs_state", None),
                 step=1,
                 interactive=True,
             )
 
             self.save_last_n_steps_state = gr.Number(
-                label="Save Last N Steps State",
-                info="Save states until N steps elapsed (overrides save_last_n_steps)",
+                label=t("sl_save_last_n_steps_state_label", lang),
+                info=t("sl_save_last_n_steps_state_info", lang),
                 value=self.config.get("save_last_n_steps_state", None),
                 step=1,
                 interactive=True,
             )
 
             self.save_state = gr.Checkbox(
-                label="Save Training State",
+                label=t("sl_save_state_label", lang),
                 value=self.config.get("save_state", False),
             )
 
             self.save_state_on_train_end = gr.Checkbox(
-                label="Save State on Train End",
+                label=t("sl_save_state_on_train_end_label", lang),
                 value=self.config.get("save_state_on_train_end", False),
                 interactive=True,
             )
